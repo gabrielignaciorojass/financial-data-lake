@@ -1,45 +1,61 @@
-import requests  # Librería para "hablar" con internet y hacer peticiones HTTP
-import json      # Librería para manejar el formato de datos que nos devuelve la API
+import requests
+import json
+import os
+from datetime import datetime
+
+# CONFIGURACIÓN
+# Definimos dónde queremos guardar los archivos (ruta relativa)
+DATA_PATH = "data/raw"
+
+def save_raw_data(data):
+    """
+    Función para guardar los datos en un archivo JSON local.
+    Simula el guardado en un Data Lake (S3).
+    """
+    # 1. Aseguramos que la carpeta exista. Si no, la crea.
+    os.makedirs(DATA_PATH, exist_ok=True)
+    
+    # 2. Generamos un nombre único usando la fecha y hora actual
+    # Ejemplo: crypto_2026-01-13_15-30-00.json
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"crypto_{timestamp}.json"
+    full_path = os.path.join(DATA_PATH, filename)
+    
+    # 3. Guardamos el archivo
+    try:
+        with open(full_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        print(f"💾 Archivo guardado exitosamente en: {full_path}")
+    except Exception as e:
+        print(f"❌ Error al guardar archivo: {e}")
 
 def extract_crypto_data():
     """
-    Función encargada de ir a buscar los precios actuales de Bitcoin y Ethereum.
-    Retorna: Un diccionario con los datos o None si falla.
+    Función principal de extracción.
     """
-    
-    # 1. Definimos la dirección (URL) de la API de CoinGecko
     url = "https://api.coingecko.com/api/v3/simple/price"
-    
-    # 2. Definimos los parámetros (¿Qué queremos pedir exactamente?)
-    # ids: Las monedas que queremos (bitcoin y ethereum)
-    # vs_currencies: En qué moneda queremos el precio (dólares 'usd')
     params = {
-        "ids": "bitcoin,ethereum",
-        "vs_currencies": "usd"
+        "ids": "bitcoin,ethereum,tether",
+        "vs_currencies": "usd",
+        "include_last_updated_at": "true" # Pedimos también la fecha de actualización
     }
     
-    print("⏳ Conectando con la API de CoinGecko...")
-    
+    print("⏳ Consultando API...")
     try:
-        # 3. Hacemos la petición GET (como si escribieras la URL en el navegador)
         response = requests.get(url, params=params, timeout=10)
         
-        # 4. Verificamos si la respuesta fue exitosa 
         if response.status_code == 200:
-            data = response.json() # Convertimos la respuesta a formato utilizable por Python
-            print("✅ ¡Éxito! Datos recibidos:")
-            print(json.dumps(data, indent=4)) # Imprimimos bonito para leerlo
-            return data
+            data = response.json()
+            print("✅ Datos recibidos. Guardando...")
+            
+            # LLAMAMOS A LA NUEVA FUNCIÓN DE GUARDADO
+            save_raw_data(data)
+            
         else:
-            # Si no es 200, algo salió mal (ej: error 404 o 500)
-            print(f"❌ Error en la API. Código de estado: {response.status_code}")
-            return None
+            print(f"❌ Error API: {response.status_code}")
 
     except Exception as e:
-        # Capturamos errores de conexión (ej: no tienes internet)
-        print(f"❌ Error crítico de conexión: {e}")
-        return None
+        print(f"❌ Error de conexión: {e}")
 
-# Bloque principal: Esto solo se ejecuta si corremos este archivo directamente
 if __name__ == "__main__":
     extract_crypto_data()
