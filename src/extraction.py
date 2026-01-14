@@ -1,55 +1,78 @@
 import requests
 import json
+import boto3
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 
-# CONFIGURACIÓN
-# Definimos dónde queremos guardar los archivos (ruta relativa)
-DATA_PATH = "data/raw"
+# 1. Cargar credenciales del archivo .env
+load_dotenv()
 
-def save_raw_data(data):
+# Configuración
+BUCKET_NAME = os.getenv("BUCKET_NAME")
+AWS_REGION = os.getenv("AWS_REGION")
+
+def upload_to_s3(data, filename):
     """
-    Función para guardar los datos en un archivo JSON local.
-    Simula el guardado en un Data Lake (S3).
+    Sube el archivo JSON directamente al Bucket S3 en AWS.
     """
-    # 1. Aseguramos que la carpeta exista. Si no, la crea.
-    os.makedirs(DATA_PATH, exist_ok=True)
-    
-    # 2. Generamos un nombre único usando la fecha y hora actual
-    # Ejemplo: crypto_2026-01-13_15-30-00.json
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"crypto_{timestamp}.json"
-    full_path = os.path.join(DATA_PATH, filename)
-    
-    # 3. Guardamos el archivo
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=AWS_REGION
+    )
+
     try:
-        with open(full_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-        print(f"💾 Archivo guardado exitosamente en: {full_path}")
+        # Convertimos el diccionario Python a texto JSON
+        json_string = json.dumps(data, indent=4)
+        
+        # Definimos la "key" (ruta dentro del bucket). 
+        # Organizamos por fecha para mantener orden: raw/2026-01-13/archivo.json
+        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+        s3_key = f"raw/{fecha_hoy}/{filename}"
+
+        print(f"☁️ Subiendo a S3: {BUCKET_NAME}/{s3_key} ...")
+        
+        # Subimos el objeto
+        s3_client.put_object(
+            Bucket=BUCKET_NAME,
+            Key=s3_key,
+            Body=json_string,
+            ContentType='application/json'
+        )
+        print("✅ ¡Archivo subido exitosamente a la nube!")
+        return True
+
     except Exception as e:
-        print(f"❌ Error al guardar archivo: {e}")
+        print(f"❌ Error al subir a S3: {e}")
+        return False
 
 def extract_crypto_data():
     """
-    Función principal de extracción.
+    Función principal: Extrae -> Sube a S3
     """
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {
-        "ids": "bitcoin,ethereum,tether",
+        "ids": "bitcoin,ethereum,tether,solana",
         "vs_currencies": "usd",
-        "include_last_updated_at": "true" # Pedimos también la fecha de actualización
+        "include_last_updated_at": "true"
     }
     
-    print("⏳ Consultando API...")
+    print("⏳ Consultando API de CoinGecko...")
     try:
         response = requests.get(url, params=params, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
-            print("✅ Datos recibidos. Guardando...")
+            print("📦 Datos recibidos correctamente.")
             
-            # LLAMAMOS A LA NUEVA FUNCIÓN DE GUARDADO
-            save_raw_data(data)
+            # Generamos nombre único
+            timestamp = datetime.now().strftime("%H-%M-%S")
+            filename = f"prices_{timestamp}.json"
+            
+            # En lugar de guardar en disco local, enviamos a AWS
+            upload_to_s3(data, filename)
             
         else:
             print(f"❌ Error API: {response.status_code}")

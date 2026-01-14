@@ -210,3 +210,7 @@ __marimo__/
 # --- Mis Datos ---
 # ignorar la carpeta data
 data/
+
+
+# ignorar archivos .env
+.env
