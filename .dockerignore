@@ -1,0 +1,16 @@
+# Ignorar entorno virtual local
+venv
+env
+.env
+
+# Ignorar git
+.git
+.gitignore
+
+# Ignorar archivos temporales de Python
+__pycache__
+*.pyc
+
+# Ignorar archivos de Docker
+Dockerfile
+.dockerignore

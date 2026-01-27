@@ -214,3 +214,16 @@ data/
 
 # ignorar archivos .env
 .env
+
+# Entornos y logs
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+
+# Datos generados (No subir a GitHub)
+output/
+*.csv
+*.parquet
+transacciones_banco.csv
