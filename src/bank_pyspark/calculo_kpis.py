@@ -17,6 +17,18 @@ df.createOrReplaceTempView("transacciones")
 print("--- Esquema de los datos ---")
 df.printSchema()
 
+print("--- Guardando Data Maestra Particionada ---")
+
+# En un Data Lake real, guardamos la data limpia particionada por fecha
+# para que sea fácil de consultar en el futuro.
+df.write \
+    .mode("overwrite") \
+    .partitionBy("fecha") \
+    .parquet("output/data_lake_partitioned")
+
+print("¡Data Lake actualizado con particiones!")
+
+
 # 4. KPI 1: ¿Cuánto dinero movió cada sucursal?
 kpi_sucursales = spark.sql("""
     SELECT sucursal, count(*) as cantidad, round(sum(monto), 2) as total
